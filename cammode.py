@@ -33,17 +33,17 @@
 #
 # Revision $Id$
 
-## Simple talker demo that listens to std_msgs/Strings published 
-## to the 'chatter' topic
-
+##Programa de un seguidor de linea simple con OpenCV
+#Importar librerias importantes
 import rospy
 import cv2
 import time
 import numpy as np
 from std_msgs.msg import String
 from pymodbus.client.sync import ModbusSerialClient as ModbusClient
+#Reemplazar port='dev/tty' con el puerto al cual este conectado el PLC
 client = ModbusClient(method = 'rtu', port='/dev/ttyUSB0', timeout=1, stopbits=1, bytsize=8, parity='N', baudrate=9600)
-client.connect()
+client.connect() #En caso de no estar conectado el programa arrojara un error relacionado a esta linea debido a que es la encaragada de la comunicacion
 check=0
 ohuh=0
 apagalootto=0
@@ -52,17 +52,12 @@ cx1=0
 cx2=0
 cxf=0
 oops=0
-#def talker(a):
- #   pub = rospy.Publisher('chatter', String, queue_size=10)
-  #  rospy.init_node('talker', anonymous=True)
-   # rate = rospy.Rate(50) # 10hz
-    #while not rospy.is_shutdown():
-   # rospy.loginfo(a)
-   # pub.publish(a)
-   # rate.sleep()
+#Acelera el vehiculo
 def avanzar():
 	#freno
 	print("VROOM")
+	#el metodo para los pedales recibe primero el registro, el valor a modificar y la direccion del esclavo/PLC
+	#Se reciben tres valores en distintos registros para evitar la oscialcion mecanica
 	client.write_register(44,826,unit=5) #valor inferior
 	client.write_register(45,827,unit=5) #medio
 	client.write_register(46,829,unit=5) #superior
@@ -70,6 +65,7 @@ def avanzar():
 	client.write_register(16,8,unit=5) #valor inferior
 	client.write_register(17,14,unit=5) #superior
 	client.write_register(18,11,unit=5) #medio
+#Acciona el freno
 def alto():
 	#freno
 	print("PARA")
@@ -80,22 +76,26 @@ def alto():
 	client.write_register(16,3,unit=5) #inferior
 	client.write_register(17,7,unit=5) #superior
 	client.write_register(18,5,unit=5) #medio
+#gira a la derecha
 def derecha():
 	print("derecha")
-	client.write_register(15,38,unit=5)#38
+	client.write_register(15,25,unit=5)#38
+#gira a la izquierda
 def izquierda():
 	print("izquierda")
-	client.write_register(15,22,unit=5)#22
+	client.write_register(15,15,unit=5)#22
+#centra las llantas
 def frente():
 	print("frente")
-	client.write_register(15,30,unit=5)
+	client.write_register(15,20,unit=5)
+#En caso de detectar un obstaculo o accionar el boton de emergencia, el vehiculo permanece detenido hasta que se mueva o se desactive el boton
 def obstaculo(espera,nmms):
 	#81 paro de emergencia
 	while(espera==1 or nmms==1):
 		rr=client.read_input_registers(83,1,unit=5)
-		espera=rr.registers[0]
+		espera=rr.registers[0] #registro de obstaculo
 		rocky2=client.read_input_registers(81,1,unit=5)		
-		nmms=rocky2.registers[0]
+		nmms=rocky2.registers[0] #registro de boton de emergencia
 		#freno
 		client.write_register(44,817,unit=5) #inferior
 		client.write_register(45,818,unit=5) #medio
@@ -105,6 +105,7 @@ def obstaculo(espera,nmms):
 		client.write_register(17,7,unit=5)
 		client.write_register(18,5,unit=5)
 		time.sleep(1)
+#mantiene los pedales sueltos
 def neutro():
 	#Freno
 	print("avanzo")
@@ -115,13 +116,16 @@ def neutro():
 	client.write_register(16,3,unit=5) #inferior
 	client.write_register(17,6,unit=5) #superior
 	client.write_register(18,5,unit=5) #medio
+#Cambia a "parking"
 def parking():
 	client.write_register(48,1,unit=5)
 	time.sleep(0.2)
+	#el delay es necesario para evitar trabar el mecanismo de palanca de velocidades
 	for y in range(5):
 		print("NOTETRABES")
 	client.write_register(48,0,unit=5)
 	time.sleep(3)
+#cambia a "drive"
 def drive():
 	client.write_register(50,1,unit=5)
 	time.sleep(0.2)
@@ -129,6 +133,7 @@ def drive():
 		print("NOTETRABES")
 	client.write_register(50,0,unit=5)
 	time.sleep(3)
+#cambia a "reversa"
 def reversa():
 	client.write_register(49,1,unit=5)
 	time.sleep(0.2)
@@ -136,6 +141,7 @@ def reversa():
 		print("NOTETRABES")
 	client.write_register(49,0,unit=5)
 	time.sleep(3)
+#Encendido automatico del vehiculo sin llave
 def encendido():
 	#Arrancado de vehiculo			
 	#cambio velocidad			
@@ -153,7 +159,7 @@ def encendido():
 		client.write_register(45,818,unit=5)
 		client.write_register(46,821,unit=5)
 		#direccion
-		#client.write_register(15,42,unit=5)
+		client.write_register(15,20,unit=5)
 		#acelerador
 		client.write_register(16,5,unit=5)
 		client.write_register(17,7,unit=5)
@@ -163,10 +169,12 @@ def encendido():
 	client.write_register(84,0,unit=5)
 	time.sleep(0.2)
 	client.write_register(80,1,unit=5)
+#Apagado del vehiculo
 def apagado():
 	client.write_register(80,0,unit=5) 
 	time.sleep(0.2)
 	client.write_register(84,1,unit=5)
+#Deteccion de obstaculos o activacion del boton de emergencia
 def cuidado():
 	global ohuh
 	global apagalootto
@@ -180,6 +188,7 @@ def cuidado():
 	elif(ohuh==1 or apagalootto==1):
 		print("GOLPE AVISA")
 		obstaculo(ohuh,apagalootto)
+#metodo principal para el seguidor de linea
 def cam():
 	global check
 	global prro
@@ -187,7 +196,7 @@ def cam():
 	global cx2
 	global cxf
 	global oops
-	capture = cv2.VideoCapture(1)  #read the video
+	capture = cv2.VideoCapture(1)  #lee el video, es necesario cambiar el numero dependiendo que dispositivo de video se va a utilizar
 	capture.set(3,320.0) #set the size
 	capture.set(4,240.0)  #set the size
 	capture.set(5,15)  #set the frame rate
@@ -210,12 +219,11 @@ def cam():
 				M = cv2.moments(cnt)
 				cx = int(M['m10']/M['m00'])
 				cy = int(M['m01']/M['m00'])
-				#print(cx)
-				#var = str(cx)
 				print("cy=")				
-				print(cy)
-				#print("cx=")
-				#print(var)
+				print(cy)#Imprimimos el centroide que nos importa
+				#El algoritmo funciona detectando lineas blancas y separando en figuras geometricas para calcular el centroide total de la imagen
+				#Con una linea blanca se tiene dos cuadrados en ambos lados, los cuales indican la direccion y que tan pegado a un extremo se encuentra la linea
+				#en caso de que los valores se inviertan por la velocidad de communicacion, se asignan a cx especificos para la funcionalidad repetible del sistea
 				if(oops==0):
 					cx1=cx
 					oops=1
@@ -223,29 +231,31 @@ def cam():
 					cx2=cx
 					oops=0		
 				cxf=cx1-cx2
+				#se calcula el total para conocer la orientacion de la linea
+				#se evitan negativos
 				if(cxf<0):
 					cxf=cxf*-1
 				if(cx2>cx1):
 					cx2tmp=cx2
 					cx2=cx1
 					cx1=cx2tmp
+				#imprimen para comprobar valores
 				print("cxf=")
 				print(cxf)
 				print("cx1=")
 				print(cx1)
 				print("cx2=")
 				print(cx2)
+				#Se espera a que se oprima el boton verde
 				rambo=client.read_input_registers(82,1,unit=5)
 				move=rambo.registers[0]
 				if(move==0 and prro==0):
 					check=0
-					#alto()
 				elif(prro==0):
 					check=1
 					prro=1
 				if(check==1):
-					#encendido()
-					#time.sleep(7)
+					#activa el control de direccion y pedales
 					client.write_register(36,1,unit=5)
 					frente()
 					alto()
@@ -253,7 +263,8 @@ def cam():
 					print("UNA VEZ")
 					print(check)
 					check=2
-				#cuidado()
+				#El agoritmo trata de mantener la linea centrada en el video y da vueltas conforme a los cambios en el valor del centroide
+				#Tambien checa que la linea no este muy pegada a algun extremo para evitar perderla al girar
 				if(cxf>174 and cxf<179 and check==2):
 					if((cx2<95 and cx2>30):
 						frente()
@@ -278,14 +289,13 @@ def cam():
 					if(cx2>30):					
 						derecha()
 						neutro()
+				#Una vez que la linea desaparece de la imagen, se detiene el programa y termina 
 				elif(cxf<10 or check==3):
 					alto()
-					#time.sleep(7)
-					#parking()
-					#client.write_register(36,0,unit=5)
+					time.sleep(7)
+					parking()
+					client.write_register(36,0,unit=5)
 					check=3
-					#break
-					#apagado()
 		
 				
 
@@ -293,5 +303,3 @@ def cam():
 if __name__ == '__main__':
     while not rospy.is_shutdown():
         cam()
-    #except rospy.ROSInterruptException:
-     #   pass
