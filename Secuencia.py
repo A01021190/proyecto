@@ -214,9 +214,10 @@ def reversa():
 def cuidado():
 	global ohuh
 	global apagalootto
-	rocky6=client.read_input_registers(81,4,unit=5) #se leen los registros continuos para evitar retrasos en la comunicacion
-	ohuh=rocky6.registers[2] #registro para obstaculos
-	apagalootto=rocky6.registers[0] #registro para boton de emergencia
+	rocky6=client.read_input_registers(81,4,unit=5) #se leen los registros continuos para evitar retrasos en la comunicacion.
+	#la lectura comienza en el registro 81 y sus 3 registros contiguos (82,83,84) del escalvo 5.
+	ohuh=rocky6.registers[2] #registro para obstaculos, registro 83
+	apagalootto=rocky6.registers[0] #registro para boton de emergencia, registro 81
 	if(ohuh==0 and apagalootto==0):	
 		return 0		
 	elif(ohuh==1 and apagalootto==0):
